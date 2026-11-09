@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f4f8f5">
+  <title>GreenLife | Sustainability Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="#overview"><span class="brand-mark">♧</span><span>Green<span class="brand-light">Life</span></span></a>
+    <div class="nav-group-label">Workspace</div>
+    <nav class="side-nav" aria-label="Main navigation">
+      <a class="nav-link active" href="#overview"><span class="nav-icon">▦</span>Overview<span class="active-dot"></span></a>
+      <a class="nav-link" href="#activities"><span class="nav-icon">⌁</span>Activities</a>
+      <a class="nav-link" href="#analytics"><span class="nav-icon">↗</span>Analytics</a>
+      <a class="nav-link" href="#tips"><span class="nav-icon">◎</span>Sustainability tips</a>
+    </nav>
+    <div class="nav-group-label account-label">Account</div>
+    <nav class="side-nav">
+      <a class="nav-link" href="#overview"><span class="nav-icon">♙</span>Profile</a>
+      <a class="nav-link" href="#overview"><span class="nav-icon">⚙</span>Settings</a>
+    </nav>
+    <div class="sidebar-note">
+      <span class="note-icon">◎</span>
+      <p class="note-label">Your monthly snapshot</p>
+      <strong>{{ monthly_total }} <small>kg CO₂e</small></strong>
+      <div class="note-progress"><span style="width:100%"></span></div>
+      <small class="note-caption">Estimated emissions recorded this month</small>
+    </div>
+    <div class="sidebar-footer"><span class="avatar">GL</span><span><b>GreenLife user</b><small>Personal dashboard</small></span></div>
+  </aside>
+
+  <main class="main-content" id="overview">
+    <header class="topbar">
+      <button class="mobile-menu" id="menuButton" aria-label="Open navigation">☰</button>
+      <div class="welcome"><p class="eyebrow">SUSTAINABILITY OVERVIEW</p><h1>Your greener journey 🌿</h1><p>Track your environmental impact and make more mindful choices.</p></div>
+      <div class="top-actions"><span class="date-chip">▦ &nbsp; {{ month_label }}</span><button class="primary-button" id="openModal"><span>＋</span> Add activity</button></div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}<button type="button" aria-label="Dismiss" onclick="this.parentElement.remove()">×</button></div>{% endfor %}</div>{% endif %}
+    {% endwith %}
+
+    <section class="stats-grid" aria-label="Monthly statistics">
+      <article class="stat-card"><div class="stat-top"><span class="stat-icon green-icon">♧</span><span class="stat-kicker">THIS MONTH</span></div><p class="stat-title">Total CO₂ emissions</p><div class="stat-value">{{ '%.2f'|format(monthly_total) }} <span>kg</span></div><p class="stat-foot">Estimated carbon footprint</p></article>
+      <article class="stat-card"><div class="stat-top"><span class="stat-icon mint-icon">⌁</span><span class="stat-kicker">ALL TIME</span></div><p class="stat-title">Activities logged</p><div class="stat-value">{{ total_activities }} <span>records</span></div><p class="stat-foot">Total activities recorded</p></article>
+      <article class="stat-card"><div class="stat-top"><span class="stat-icon amber-icon">ϟ</span><span class="stat-kicker">THIS MONTH</span></div><p class="stat-title">Electricity usage</p><div class="stat-value">{{ '%.2f'|format(electricity_usage) }} <span>kWh</span></div><p class="stat-foot">Recorded electricity consumption</p></article>
+      <article class="stat-card"><div class="stat-top"><span class="stat-icon blue-icon">⌁</span><span class="stat-kicker">THIS MONTH</span></div><p class="stat-title">Travel emissions</p><div class="stat-value">{{ '%.2f'|format(travel_emissions) }} <span>kg</span></div><p class="stat-foot">Car, two-wheeler, bus and train</p></article>
+    </section>
+
+    <section class="charts-grid" id="analytics">
+      <article class="panel category-panel">
+        <div class="panel-heading"><div><h2>Emissions by category</h2><p>Your carbon footprint breakdown for {{ month_label }}</p></div><span class="panel-tag">Category view</span></div>
+        {% if values|sum > 0 %}<div class="donut-content"><div class="donut-wrap"><canvas id="emissionChart" aria-label="Doughnut chart of emissions by activity"></canvas><div class="donut-center"><strong>{{ '%.1f'|format(monthly_total) }}</strong><span>kg CO₂e</span></div></div><div class="chart-legend" id="categoryLegend"></div></div>{% else %}<div class="empty-chart"><span>◌</span><b>No emissions recorded this month</b><p>Add an activity to see your category breakdown.</p></div>{% endif %}
+      </article>
+      <article class="panel trend-panel">
+        <div class="panel-heading"><div><h2>Emission trends</h2><p>Monthly carbon emissions over the last six months</p></div><span class="panel-tag">6 months</span></div>
+        <div class="trend-total"><strong>{{ '%.2f'|format(monthly_total) }} <small>kg CO₂e</small></strong><span>Current month</span></div>
+        <div class="trend-chart-wrap"><canvas id="trendChart" aria-label="Bar chart of monthly carbon emissions"></canvas></div>
+      </article>
+    </section>
+
+    <section class="panel activity-panel" id="activities">
+      <div class="panel-heading"><div><h2>Recent activities</h2><p>Your latest logged consumption and travel</p></div><span class="panel-tag">Latest 10 records</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Activity</th><th>Consumption</th><th>Date</th><th>Emissions</th><th>Action</th></tr></thead><tbody>
+      {% for activity in activities %}<tr>
+        <td><span class="activity-type"><span class="row-icon {% if activity.activity_type == 'Electricity' %}amber-icon{% elif activity.activity_type == 'Car' %}blue-icon{% else %}green-icon{% endif %}">{% if activity.activity_type == 'Electricity' %}ϟ{% elif activity.activity_type == 'Car' %}▱{% else %}⌁{% endif %}</span><span><b>{{ activity.activity_type }}</b>{% if activity.notes %}<small>{{ activity.notes }}</small>{% endif %}</span></span></td>
+        <td>{{ activity.amount|round(2) }} {% if activity.activity_type == 'Electricity' %}kWh{% else %}km{% endif %}</td><td>{{ activity.activity_date }}</td><td><strong>{{ '%.2f'|format(activity.co2_kg) }} kg CO₂e</strong></td>
+        <td><form action="{{ url_for('delete_activity', activity_id=activity.id) }}" method="POST" onsubmit="return confirm('Delete this activity?')"><button class="delete-button" type="submit" aria-label="Delete {{ activity.activity_type }} activity">⌫</button></form></td>
+      </tr>{% else %}<tr><td colspan="5" class="empty-row"><span>🌱</span><b>No activities yet</b><small>Add your first activity to start tracking your footprint.</small></td></tr>{% endfor %}
+      </tbody></table></div>
+    </section>
+
+    <section class="tips-section" id="tips"><div class="tips-heading"><div><span class="tips-title-icon">♧</span><span><h2>Sustainability tips</h2><p>Small changes can make a meaningful difference.</p></span></div></div>
+      <div class="tips-grid">
+        <article class="tip-card"><span class="tip-icon amber-icon">ϟ</span><div><span class="tip-category">ENERGY</span><h3>Use energy mindfully</h3><p>Switch off appliances and lights when they are not in use.</p></div></article>
+        <article class="tip-card"><span class="tip-icon blue-icon">⌁</span><div><span class="tip-category">TRAVEL</span><h3>Choose active transport</h3><p>Walk, cycle or use public transport for suitable journeys.</p></div></article>
+        <article class="tip-card"><span class="tip-icon green-icon">♻</span><div><span class="tip-category">WASTE</span><h3>Make recycling count</h3><p>Sort reusable and recyclable materials before disposal.</p></div></article>
+      </div>
+    </section>
+    <footer class="page-footer"><a class="brand footer-brand" href="#overview"><span class="brand-mark">♧</span><span>Green<span class="brand-light">Life</span></span></a><p>Making every action count toward a greener future.</p><span>© 2026 GreenLife</span></footer>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="activityModal" aria-hidden="true"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-heading"><div><p class="eyebrow">NEW RECORD</p><h2 id="modalTitle">Add an activity</h2><p>Record your consumption or travel distance.</p></div><button class="modal-close" id="closeModal" aria-label="Close">×</button></div>
+  <form action="{{ url_for('add_activity') }}" method="POST" id="activityForm">
+    <label>Activity type<select name="activity_type" required><option value="">Select an activity</option>{% for name in factors %}<option value="{{ name }}">{{ name }}</option>{% endfor %}</select></label>
+    <label>Consumption / distance<input type="number" name="amount" min="0.01" step="any" placeholder="e.g. 25" required><small>Electricity is measured in kWh; travel is measured in kilometres.</small></label>
+    <label>Date<input type="date" name="activity_date" value="{{ today }}" max="{{ today }}" required></label>
+    <label>Description <span class="optional">(optional)</span><input type="text" name="notes" maxlength="200" placeholder="Add a short note"></label>
+    <div class="modal-actions"><button type="button" class="secondary-button" id="cancelModal">Cancel</button><button type="submit" class="primary-button">Save activity</button></div>
+  </form>
+</section></div>
+
+<script>
+  const categoryLabels = {{ labels | tojson }};
+  const categoryValues = {{ values | tojson }};
+  const trendLabels = {{ trend_labels | tojson }};
+  const trendValues = {{ trend_values | tojson }};
+  const chartColors = ["#176b4b", "#58b991", "#a8ddc8", "#e1eee8", "#d5a64a"];
+
+  if (window.Chart) {
+    const donut = document.getElementById("emissionChart");
+    if (donut && categoryValues.length) {
+      const chart = new Chart(donut, {type: "doughnut", data: {labels: categoryLabels, datasets: [{data: categoryValues, backgroundColor: chartColors, borderWidth: 0, hoverOffset: 5}]}, options: {responsive: true, maintainAspectRatio: false, cutout: "76%", plugins: {legend: {display: false}, tooltip: {callbacks: {label: (context) => ` ${context.label}: ${Number(context.raw).toFixed(2)} kg CO₂e`}}}}});
+      const legend = document.getElementById("categoryLegend");
+      legend.innerHTML = categoryLabels.map((label, index) => `<div class="legend-row"><span class="legend-dot" style="background:${chartColors[index % chartColors.length]}"></span><span>${label}</span><strong>${Number(categoryValues[index]).toFixed(2)} kg</strong></div>`).join("");
+    }
+    const trend = document.getElementById("trendChart");
+    if (trend) new Chart(trend, {type: "bar", data: {labels: trendLabels, datasets: [{data: trendValues, backgroundColor: trendValues.map((_, i) => i === trendValues.length - 1 ? "#277d5c" : "#c7e4d7"), borderRadius: 6, maxBarThickness: 38}]}, options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: (context) => ` ${Number(context.raw).toFixed(2)} kg CO₂e`}}}, scales: {x: {grid: {display: false}, border: {display: false}, ticks: {color: "#84948c", font: {family: "DM Sans", size: 10}}}, y: {beginAtZero: true, grid: {color: "#edf2ef", drawBorder: false}, border: {display: false}, ticks: {color: "#9aa8a1", font: {family: "DM Sans", size: 9}, maxTicksLimit: 5}}}}});
+  }
+
+  const modal = document.getElementById("activityModal");
+  const openModal = () => { modal.classList.add("show"); modal.setAttribute("aria-hidden", "false"); document.body.classList.add("modal-open"); };
+  const closeModal = () => { modal.classList.remove("show"); modal.setAttribute("aria-hidden", "true"); document.body.classList.remove("modal-open"); };
+  document.getElementById("openModal").addEventListener("click", openModal);
+  document.getElementById("closeModal").addEventListener("click", closeModal);
+  document.getElementById("cancelModal").addEventListener("click", closeModal);
+  modal.addEventListener("click", (event) => { if (event.target === modal) closeModal(); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeModal(); });
+  document.getElementById("menuButton").addEventListener("click", () => document.getElementById("sidebar").classList.toggle("sidebar-open"));
+  document.querySelectorAll(".nav-link").forEach(link => link.addEventListener("click", () => document.getElementById("sidebar").classList.remove("sidebar-open")));
+</script>
+</body>
+</html>
